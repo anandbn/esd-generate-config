@@ -1,0 +1,10 @@
+geico_edge:
+  deploymentName: "Chat_VA_Application"
+  buttonName: "Virtual_Assistant_Application"
+  jsParameterName: "LIVECHAT_PARAMETERS_EDGE"
+  webAppUrl: "http://edge.geico.com"
+geico_static:
+  deploymentName: "Chat_VA_Static"
+  buttonName: "Virtual_Assistant_Static"
+  jsParameterName: "LIVECHAT_PARAMETERS_STATIC"
+  webAppUrl: "http://www.geico.com"
