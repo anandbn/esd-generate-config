@@ -8,3 +8,4 @@
 node_modules
 .images
 .circleci
+esd_static_resource_geico.yaml

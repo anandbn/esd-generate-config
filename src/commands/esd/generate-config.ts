@@ -48,7 +48,7 @@ export default class GenerateConfig extends SfdxCommand {
   protected static flagsConfig = {
     // flag with a value (-n, --name=VALUE)
     configfile: flags.string({ char: 'c', description: messages.getMessage('configFlagDescription'), required: true }),
-    staticresourcename: flags.string({ char: 's', description: messages.getMessage('staticresourcenameFlagDescription'), required: true }),
+    staticresourcename: flags.string({ char: 's', description: messages.getMessage('staticresourcenameFlagDescription'), required: false }),
     debug: flags.boolean({ char: 'v', description: messages.getMessage('verboseFlagDescription') }),
 
   };
@@ -83,26 +83,34 @@ export default class GenerateConfig extends SfdxCommand {
       const conn = this.org.getConnection();
       const finalStaticResourceJs = finalJsString.join('\n');
 
-      let result:QueryResult<any>= await conn.tooling.query(`select Id,Name from StaticResource where Name='${this.flags.staticresourcename}'`)
+      if(this.flags.staticresourcename){
+        let result:QueryResult<any>= await conn.tooling.query(`select Id,Name from StaticResource where Name='${this.flags.staticresourcename}'`)
       
-      let sRes: StaticResource = {
-        Body: Buffer.from(finalStaticResourceJs, 'binary').toString('base64'),
-        ContentType: 'application/js',
-        CacheControl: 'public',
-        Name: this.flags.staticresourcename,
-        Id:null
-      }
-      let sResUpdate:any;
-      if(result.totalSize == 1){
-        sRes.Id=result.records[0].Id;
-        sResUpdate = await conn.tooling.update('StaticResource', sRes)
+        let sRes: StaticResource = {
+          Body: Buffer.from(finalStaticResourceJs, 'binary').toString('base64'),
+          ContentType: 'text/javascript',
+          CacheControl: 'public',
+          Name: this.flags.staticresourcename,
+          Id:null
+        }
+        let sResUpdate:any;
+        if(result.totalSize == 1){
+          sRes.Id=result.records[0].Id;
+          sResUpdate = await conn.tooling.update('StaticResource', sRes)
+        }else{
+          sResUpdate = await conn.tooling.create('StaticResource', sRes)
+        }
+        
+        return {
+          "Id": sResUpdate.id
+        }
       }else{
-        sResUpdate = await conn.tooling.create('StaticResource', sRes)
+        console.log(`========= STATIC RESOURCE JS ================\n ${finalStaticResourceJs}`);
+        return {
+          "status": "JS printed on console"
+        }
       }
       
-      return {
-        "Id": sResUpdate.id
-      }
     }
   }
 
@@ -145,7 +153,7 @@ export default class GenerateConfig extends SfdxCommand {
     const chatEndpoint = url.parse(chatEndpointUrl, true);
     const hostNameLA = chatEndpoint.host;
     const hostNameContent = chatEndpoint.host.replace('d\.', 'c\.');
-    const jsString = `windows.${btnDeployment.jsParameterName}={
+    const jsString = `window.${btnDeployment.jsParameterName}={
         "instanceUrl": '${conn.instanceUrl}',
         "pageUrl" : '${btnDeployment.webAppUrl}',
         "orgId": '${this.org.getOrgId()}',
