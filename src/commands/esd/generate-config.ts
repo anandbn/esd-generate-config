@@ -123,7 +123,7 @@ export default class GenerateConfig extends SfdxCommand {
       throw new SfdxError(messages.getMessage('errorNoEsdResults', [this.flags.esdname]));
     }
 
-    const esdConfigId = result.records[0].Id;
+    const esdConfigId = result.records[0].Id.substring(0,15);
 
     result = await conn.tooling.query<IdAndName>(`select Id,FullName from EmbeddedServiceLiveAgent where EmbeddedServiceConfigId='${esdConfigId}'`);
     if (!result.records || result.records.length <= 0) {
@@ -137,14 +137,14 @@ export default class GenerateConfig extends SfdxCommand {
     if (!result.records || result.records.length <= 0) {
       throw new SfdxError(messages.getMessage('errorNoEsdLAResults', [this.flags.esdname]));
     }
-    const deploymentId = result.records[0].Id;
+    const deploymentId = result.records[0].Id.substring(0,15);;
     if (this.flags.debug) this.ux.log(`[${btnDeployment.deploymentName}:${btnDeployment.buttonName}] - Fetched deployment id: ${deploymentId}`);
     result = await conn.query<IdAndName>(`SELECT DeveloperName,Id  FROM LiveChatButton where DeveloperName='${btnDeployment.buttonName}'`);
     if (!result.records || result.records.length <= 0) {
       throw new SfdxError(messages.getMessage('errorNoEsdLAResults', [this.flags.esdname]));
     }
 
-    const buttonId = result.records[0].Id;
+    const buttonId = result.records[0].Id.substring(0,15);;
     if (this.flags.debug) this.ux.log(`[${btnDeployment.deploymentName}:${btnDeployment.buttonName}] - Fetched button Id : ${buttonId}`);
 
     const chatEndpointUrl = await this.getLiveAgentEndpointUrl(conn,btnDeployment);
@@ -156,12 +156,12 @@ export default class GenerateConfig extends SfdxCommand {
     const jsString = `window.${btnDeployment.jsParameterName}={
         "instanceUrl": '${conn.instanceUrl}',
         "pageUrl" : '${btnDeployment.webAppUrl}',
-        "orgId": '${this.org.getOrgId()}',
+        "orgId": '${this.org.getOrgId().substring(0,15)}',
         "botName": '${btnDeployment.deploymentName}',
         "chatParameters": {
             "baseLiveAgentContentURL": 'https://${hostNameContent}/content',
             "deploymentId": '${deploymentId}',
-          "buttonId": '${buttonId}',
+            "buttonId": '${buttonId}',
             "baseLiveAgentURL": 'https://${hostNameLA}/chat',
             "eswLiveAgentDevName": '${esdFullName}',
             "isOfflineSupportEnabled": false
