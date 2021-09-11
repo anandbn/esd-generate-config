@@ -10,7 +10,6 @@
     "@oclif/errors": "^1",
     "@salesforce/command": "^2",
     "@salesforce/core": "^2",
-    "puppeteer": "^10.1.0",
     "tslib": "^1",
     "yaml": "^1.10.2"
   },

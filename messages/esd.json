@@ -4,5 +4,5 @@
   "staticresourcenameFlagDescription":"Name for the static resource that will be created",
   "verboseFlagDescription":"Log additional debug messages",
   "errorNoEsdResults":"No deployments found with the name %s found",
-  "errorNoEsdLAResults":"No live agent embedded service configurations found with the name %s found"
+  "errorNoEsdLAResults":"No EmbeddedServiceLiveAgent configurations found"
 }

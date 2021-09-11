@@ -116,13 +116,27 @@ export default class GenerateConfig extends SfdxCommand {
 
   private async getJsStringForButtonDeployment(btnDeployment: ButtonAndDeployment) {
     const conn = this.org.getConnection();
-    let result = await conn.tooling.query<IdAndName>(`select Id,DeveloperName from EmbeddedServiceConfig where DeveloperName = '${btnDeployment.deploymentName}'`);
+
+
+    let result = await conn.query<IdAndName>(`SELECT Id FROM Site`);
+    if (!result.records || result.records.length <= 0) {
+      throw new SfdxError(messages.getMessage('errorNoSiteResults', [this.flags.esdname]));
+    }
+    let siteId = result.records[0].Id;
+
+    let siteDetails = await conn.query<any>(`SELECT SecureUrl FROM SiteDetail where DurableId='${siteId}'`);
+    if (!siteDetails.records || siteDetails.records.length <= 0) {
+      throw new SfdxError(messages.getMessage('errorNoSiteDetailResults', [this.flags.esdname]));
+    }
+
+    let secureUrl = siteDetails.records[0].SecureUrl;
+
+    result = await conn.tooling.query<IdAndName>(`select Id,DeveloperName from EmbeddedServiceConfig where DeveloperName = '${btnDeployment.deploymentName}'`);
     // Organization will always return one result, but this is an example of throwing an error
     // The output and --json will automatically be handled for you.
     if (!result.records || result.records.length <= 0) {
       throw new SfdxError(messages.getMessage('errorNoEsdResults', [this.flags.esdname]));
     }
-
     const esdConfigId = result.records[0].Id.substring(0,15);
 
     result = await conn.tooling.query<IdAndName>(`select Id,FullName from EmbeddedServiceLiveAgent where EmbeddedServiceConfigId='${esdConfigId}'`);
@@ -147,22 +161,19 @@ export default class GenerateConfig extends SfdxCommand {
     const buttonId = result.records[0].Id.substring(0,15);;
     if (this.flags.debug) this.ux.log(`[${btnDeployment.deploymentName}:${btnDeployment.buttonName}] - Fetched button Id : ${buttonId}`);
 
-    const chatEndpointUrl = await this.getLiveAgentEndpointUrl(conn,btnDeployment);
+    const chatEndpointUrls = await this.getLiveAgentEndpointUrl();
 
-    if (this.flags.debug) this.ux.log(`[${btnDeployment.deploymentName}:${btnDeployment.buttonName}] - Fetched live chat url : ${chatEndpointUrl}`);
-    const chatEndpoint = url.parse(chatEndpointUrl, true);
-    const hostNameLA = chatEndpoint.host;
-    const hostNameContent = chatEndpoint.host.replace('d\.', 'c\.');
+    
     const jsString = `window.${btnDeployment.jsParameterName}={
         "instanceUrl": '${conn.instanceUrl}',
-        "pageUrl" : '${btnDeployment.webAppUrl}',
+        "pageUrl" : '${secureUrl}',
         "orgId": '${this.org.getOrgId().substring(0,15)}',
         "botName": '${btnDeployment.deploymentName}',
         "chatParameters": {
-            "baseLiveAgentContentURL": 'https://${hostNameContent}/content',
+            "baseLiveAgentContentURL": '${chatEndpointUrls.contentUrl}',
             "deploymentId": '${deploymentId}',
             "buttonId": '${buttonId}',
-            "baseLiveAgentURL": 'https://${hostNameLA}/chat',
+            "baseLiveAgentURL": '${chatEndpointUrls.contentUrl}',
             "eswLiveAgentDevName": '${esdFullName}',
             "isOfflineSupportEnabled": false
         }  
@@ -171,32 +182,22 @@ export default class GenerateConfig extends SfdxCommand {
 
     return jsString;
   }
-  private async getLiveAgentEndpointUrl(conn: any,btnDeployment:ButtonAndDeployment) {
-    let browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    let page = await browser.newPage();
-    const setupHome = '/lightning/setup/LiveAgentSettings/home';
-    let urlToGo = `${conn.instanceUrl}/secur/frontdoor.jsp?sid=${conn.accessToken}&retURL=${encodeURIComponent(setupHome)}`;
-    await page.goto(urlToGo);
-    await page.waitForNavigation();
-    await page.waitForTimeout(10 * 1000);
-    if (this.flags.debug) this.ux.log(`[${btnDeployment.deploymentName}:${btnDeployment.buttonName}] - Logged into Setup`);
 
-    //input[readonly="readonly"]
-    let pageFrames = page.mainFrame().childFrames();
-    let charUrlVal = '';
-    if (pageFrames.length == 1) {
-      let chatSetupFrame = pageFrames[0];
-      const quickFindEl = await chatSetupFrame.$(`input[readonly="readonly"]`);
-      if (this.flags.debug) this.ux.log(`[${btnDeployment.deploymentName}:${btnDeployment.buttonName}] - Found readonly chat url text field`);
-      charUrlVal = await chatSetupFrame.evaluate(el => el.value, quickFindEl)
+  private async getLiveAgentEndpointUrl() {
 
+
+    const conn = this.org.getConnection();
+    let liveAgentUrls = await conn.tooling.query<any>(`select LiveAgentContentUrl,LiveAgentChatUrl from EmbeddedServiceLiveAgent limit 1`);
+    
+    if (!liveAgentUrls.records || liveAgentUrls.records.length <= 0) {
+      throw new SfdxError(messages.getMessage('errorNoEsdLARecords'));
     }
 
-    await browser.close();
-    return charUrlVal;
+    return {
+      "chatUrl":liveAgentUrls.records[0].LiveAgentChatUrl,
+      "contentUrl":liveAgentUrls.records[0].LiveAgentContentUrl
+    }
+
   }
 
 }
